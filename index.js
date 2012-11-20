@@ -16,7 +16,7 @@ module.exports = function (options) {
         };
 
     options = _.extend({
-        tmpDir: '/tmp',
+        tmpDir: __dirname + '/tmp',
         uploadDir: __dirname + '/public/files',
         uploadUrl: '/files/',
         maxPostSize: 11000000000, // 11 GB
@@ -92,11 +92,9 @@ module.exports = function (options) {
     };
 
     UploadHandler.prototype.noCache = function () {
-        this.res.set({
-            'Pragma': 'no-cache',
-            'Cache-Control': 'no-store, no-cache, must-revalidate',
-            'Content-Disposition': 'inline; filename="files.json"'
-        });
+        this.res.header('Pragma', 'no-cache');
+        this.res.header('Cache-Control', 'no-store, no-cache, must-revalidate');
+        this.res.header('Content-Disposition', 'inline; filename="files.json"');
     };
 
     UploadHandler.prototype.get = function () {
@@ -162,6 +160,8 @@ module.exports = function (options) {
                         fs.unlink(file.path);
                         return;
                     }
+                    var _filename = handler.req.query.imgName;
+                    fileInfo.name = _filename ? _filename+path.extname(fileInfo.name) : fileInfo.name;
                     fs.renameSync(file.path, options.uploadDir + '/' + fileInfo.name);
                     if (options.imageTypes.test(fileInfo.name) && _.keys(options.imageVersions).length) {
                         Object.keys(options.imageVersions).forEach(function (version) {
@@ -208,19 +208,15 @@ module.exports = function (options) {
     };
 
     return function (req, res, next) {
-        res.set({
-            'Access-Control-Allow-Origin': options.accessControl.allowOrigin,
-            'Access-Control-Allow-Methods': options.accessControl.allowMethods
-        });
+        res.header('Access-Control-Allow-Origin', options.accessControl.allowOrigin);
+        res.header('Access-Control-Allow-Methods', options.accessControl.allowMethods);
+
         var handler = new UploadHandler(req, res, function (result, redirect) {
             if (redirect) {
                 res.redirect(redirect.replace(/%s/, encodeURIComponent(JSON.stringify(result))));
             } else {
-                res.set({
-                    'Content-Type': req.headers.accept.indexOf('application/json') !== -1
-                        ? 'application/json'
-                        : 'text/plain'
-                });
+                var _tmp = req.headers.accept.indexOf('application/json') !== -1 ? 'application/json' : 'text/plain';
+                res.header('Content-Type', _tmp);
                 res.json(200, result);
             }
         });
